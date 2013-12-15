@@ -73,11 +73,11 @@ public class JDBCTester {
 		File driverJar;
 		try {
 			driverJar = checkDriverLocation();
-		} catch (FileNotFoundException | InvalidJarLocationException e1) {
-			LOGGER.error(
-					String.format(
-							"Invalid driver JAR archive location '%s'. See log for more details.",
-							driverJarLoc), e1);
+		} catch (FileNotFoundException e) {
+			LOGGER.error(invalidJarLocationMessage(), e);
+			return false;
+		} catch (InvalidJarLocationException e) {
+			LOGGER.error(invalidJarLocationMessage(), e);
 			return false;
 		}
 
@@ -105,7 +105,6 @@ public class JDBCTester {
 					driverName), e);
 			return false;
 		}
-
 		LOGGER.debug("Registering driver to DriverManager");
 		try {
 			DriverManager.registerDriver(new DriverShim(driver));
@@ -129,6 +128,12 @@ public class JDBCTester {
 
 		LOGGER.info("Connection successfull!");
 		return true;
+	}
+
+	private String invalidJarLocationMessage() {
+		return String
+				.format("Invalid driver JAR archive location '%s'. See log for more details.",
+						driverJarLoc);
 	}
 
 	private File checkDriverLocation() throws FileNotFoundException,
@@ -165,13 +170,18 @@ public class JDBCTester {
 	private Driver loadDriver(ClassLoader classLoader)
 			throws LoadDriverException {
 		Driver driver;
+
 		try {
 			driver = (Driver) Class.forName(driverName, true, classLoader)
 					.newInstance();
-		} catch (ClassNotFoundException | InstantiationException
-				| IllegalAccessException e) {
+		} catch (InstantiationException e) {
+			throw new LoadDriverException(e);
+		} catch (IllegalAccessException e) {
+			throw new LoadDriverException(e);
+		} catch (ClassNotFoundException e) {
 			throw new LoadDriverException(e);
 		}
+
 		return driver;
 	}
 }
@@ -216,11 +226,12 @@ class DriverShim implements Driver {
 		return this.driver.jdbcCompliant();
 	}
 
-	@Override
+	// Java 1.7
 	public java.util.logging.Logger getParentLogger()
 			throws SQLFeatureNotSupportedException {
-		return this.driver.getParentLogger();
+		throw new SQLFeatureNotSupportedException();
 	}
+
 }
 
 // Custom Exceptions
